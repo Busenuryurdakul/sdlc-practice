@@ -375,3 +375,124 @@ Finally, in **Maintenance**, we monitor errors, review audit logs, and fix issue
 So SDLC is not just coding. It is a step-by-step way to build software safely — especially when trust and accuracy matter."
 
 **Estimated time:** ~90–120 seconds
+
+# Requirements Discovery — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Feature:** File Integrity Verification
+
+**Feature goal:** A user should be able to check whether a file still matches the version previously registered in ProofChain.
+
+---
+
+## 1. Stakeholder Questions
+
+Before building File Integrity Verification, the team should ask these discovery questions:
+
+1. **Who uses the feature?** Who will verify files — internal staff, external clients, auditors, or all of them?
+2. **Why do they need verification?** What problem happens today when someone cannot confirm a file is unchanged?
+3. **What files need verification?** Which file types, sizes, and sources must be supported in the first release?
+4. **What does "verified" mean to the user?** Does the user expect proof of sameness, proof of origin, or proof of legal validity?
+5. **What should happen when verification fails?** Should the user see guidance, contact support, download a report, or block a workflow?
+6. **How should users identify the original registered file?** Will they search by file name, upload again, enter a record ID, or scan a QR code?
+7. **How important is verification speed?** Is verification used occasionally or many times per hour during critical work?
+8. **What information should users see in the result?** Do they need only pass/fail, or also timestamp, owner, and change details?
+9. **What audit/history information is needed?** Who must see when a file was registered, verified, and by whom?
+10. **What security/privacy expectations exist?** Who can access verification results, and what file data can be stored or displayed?
+
+---
+
+## 2. Problem vs Solution
+
+### User Problems
+
+1. A user cannot easily tell whether a stored document has changed since registration.
+2. A team member may receive a modified file but has no simple way to compare it with the trusted original.
+3. An auditor needs evidence that a file shown today is the same file that was registered earlier.
+4. A user may not know which registered record belongs to the file they are holding now.
+5. When verification fails, users may not understand what changed, what to do next, or who to notify.
+6. Organizations lack a clear history of when files were registered and later checked.
+
+### Premature Solutions
+
+1. Use blockchain to store every fingerprint.
+2. Build a mobile app before understanding who verifies files and when.
+3. Add AI to detect whether document content is true or false.
+4. Require all users to create accounts before any verification can happen.
+5. Store full file copies forever in the cloud for every verification request.
+6. Launch with support for every file type and size on day one.
+
+Requirements discovery should first validate the problem before selecting technologies or architecture.
+
+---
+
+## 3. Constraints
+
+### Business Constraints
+
+1. The MVP must focus on File Integrity Verification before advanced features such as batch processing or team dashboards.
+2. The product must clearly explain that ProofChain checks file sameness, not factual truth.
+3. The business needs a simple verification flow that non-technical users can understand.
+4. Support and onboarding effort must stay manageable for a small initial user base.
+
+### Time Constraints
+
+1. The first release must deliver core register-and-verify functionality within a limited project timeline.
+2. Discovery, design, and testing must fit into planned sprint cycles.
+3. Not all requested file types or integrations can be delivered in the first version.
+4. Documentation and user guidance must be ready before launch.
+
+### Legal / Compliance Constraints
+
+1. Privacy, retention, and data handling requirements must be reviewed with relevant legal and compliance experts.
+2. The system should collect only the data needed to register and verify files.
+3. Users may need clear consent and notice about what file metadata is stored.
+4. Audit records may need to be kept for an agreed retention period, subject to expert review.
+5. Access to verification history may need role-based controls.
+
+### Technical Constraints
+
+1. Verification depends on a reliable fingerprint method such as SHA-256 for registered files.
+2. Large files may affect upload time, processing time, and storage costs.
+3. The system must return a clear result: match or no match.
+4. Verification must work through a defined API and user interface.
+5. Failed verification must not be shown as successful under any condition.
+
+---
+
+## 4. Ambiguity Hunt
+
+**Vague request:**
+
+> "Make file verification faster."
+
+This request should **not** be accepted as a final requirement.
+
+### Clarifying Questions
+
+1. What is the current verification time today?
+2. What target verification time is expected by users or the business?
+3. Which part feels slow — upload, fingerprint calculation, database lookup, or total response time?
+4. Which file sizes are considered slow?
+5. What is the maximum file size the first release must support?
+6. How many verification requests are expected at the same time?
+7. Is the problem worse on web, mobile, or API clients?
+8. Does "faster" mean average speed, worst-case speed, or both?
+9. What test conditions should be used to measure speed — network type, file type, user location?
+10. Is speed more important than accuracy, audit detail, or security controls?
+
+These questions help turn a vague request into a measurable requirement.
+
+### Clarified Requirement Example
+
+> For files up to **[defined size]**, 95% of verification requests should return a result within **[agreed target]** under **[defined test conditions]**.
+
+---
+
+## 5. Key Takeaway
+
+Requirements discovery helps the team understand real user needs before building the product.
+
+It separates actual problems from early technical ideas that may not solve the right problem.
+
+**Understand the problem before choosing the solution.**
