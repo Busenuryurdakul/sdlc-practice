@@ -887,3 +887,181 @@ Design connects requirements to implementation.
 A simple context diagram, component sketch, and data sketch help the team agree on boundaries before writing large amounts of code.
 
 Trade-off notes make important decisions visible early and reduce rework later.
+
+# Mini Spec — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Feature:** File Integrity Verification
+**Status:** MVP specification
+
+**Product boundary:** ProofChain verifies whether a file matches a previously registered version. It does **not** determine whether the information inside the document is factually true.
+
+---
+
+## Problem
+
+Teams share digital files over time but cannot easily prove a file is still the exact same version that was registered earlier. ProofChain solves this by registering a file fingerprint and later comparing an uploaded file against that registered version.
+
+---
+
+## Users
+
+| User | Need |
+|------|------|
+| Project manager | Register and manage trusted file records |
+| Compliance officer | Verify files against registered versions |
+| Team member | Understand verification results quickly |
+| External auditor | Review verification history |
+| Records / security administrator | Identify records and manage access |
+
+---
+
+## MVP Scope
+
+**In scope:** Register a file, verify a file, show **VERIFIED** / **NO MATCH** / **ERROR** results, identify the correct record, view history for a selected record.
+
+**MVP file type / size:** TBD — supported file types and maximum file size must be agreed before implementation.
+
+**Out of scope for MVP:** blockchain, AI truth-checking, full-file archival by default, batch verification, mobile app, organization-wide history reporting, advanced enterprise permission management UI.
+
+**MVP build order:** Register → Verify → Show result → Identify record → View history
+
+---
+
+## User Stories (MVP)
+
+1. **Register a File** — **As a** project manager, **I want** to register a file, **so that** my team has a trusted original record.
+2. **Verify a File** — **As a** compliance officer, **I want** to verify an uploaded file, **so that** I can confirm it still matches the registered version.
+3. **Understand Verification Result** — **As a** team member, **I want** a clear **VERIFIED**, **NO MATCH**, or **ERROR** result, **so that** I know whether the file matches or whether the check could not be completed.
+4. **View Verification History** — **As an** authorized user, **I want** to view verification history for a selected **FileRecord**, **so that** I can review past checks for that record. Organization-wide history is not an MVP requirement.
+5. **Identify Registered Record** — **As a** records administrator, **I want** to find the correct record, **so that** verification uses the intended version.
+
+---
+
+## Acceptance Criteria (Core)
+
+### Story 1 — Register a File
+
+- Successful registration stores fingerprint, record ID, file name, and timestamp.
+- User sees confirmation with record details.
+- Unsupported file type, oversize file, or processing failure does not create a record or show success.
+- Registered record can be selected later for verification.
+
+### Story 2 — Verify a File
+
+- Identical file → **VERIFIED**
+- Different or modified file → **NO MATCH** (never **VERIFIED**)
+- Verification compares against the selected registered version only.
+- Processing or system failure → **ERROR** (never **VERIFIED**)
+- Result screen shows **VERIFIED**, **NO MATCH**, or **ERROR**, plus the record ID or file name used
+
+**Result terminology:**
+
+| Condition | User-facing result |
+|-----------|-------------------|
+| Identical file | **VERIFIED** |
+| Modified file | **NO MATCH** |
+| Processing failure | **ERROR** |
+
+---
+
+## Constraints
+
+| Type | Constraint |
+|------|------------|
+| **Business** | MVP focuses on register + verify before advanced features |
+| **Time** | First release must fit planned sprint cycles |
+| **Legal / Compliance** | Privacy, retention, and data-handling requirements must be reviewed with appropriate experts |
+| **Technical** | Use SHA-256 fingerprinting; **ERROR** and **NO MATCH** must never be shown as **VERIFIED** |
+| **Security** | Authentication uses the defined Identity Provider; protected records and verification history require authorized access; audit information must not be silently modified through normal user workflows |
+| **Product** | Store fingerprint + metadata by default, not full file content |
+
+**Key trade-off:** ProofChain stores fingerprint + metadata rather than full files by default. This reduces storage and privacy exposure, but the system cannot reconstruct the original file from the fingerprint alone.
+
+---
+
+## Design Attachments
+
+### Context (summary)
+
+```text
+Actors: Project Manager, Compliance Officer, Team Member,
+        External Auditor, Records / Security Admin
+
+External systems:
+- Identity Provider
+- Object Storage (optional upload buffer)
+
+Inside ProofChain:
+- Web UI, API, Registry DB, Audit Log, Hashing, Authorization, Jobs
+```
+
+Audit logging is an **internal** ProofChain responsibility.
+
+### Component (summary)
+
+```text
+Web UI → Verification API → Hashing Service / Authorization
+                         → Registry DB / Audit Log / Background Jobs
+```
+
+These are **logical components** within one application, not separately deployed microservices.
+
+### Data (summary)
+
+```text
+User → FileRecord → FileVersion → Fingerprint
+                      ↓
+               VerificationEvent → AuditEntry
+```
+
+**FileVersion → VerificationEvent** is the core verification relationship.
+
+---
+
+## Self-Review Pass
+
+This section records a **self-review** of the current mini spec. No external peer review was performed.
+
+| Review Question | Result | Revision |
+|-----------------|--------|----------|
+| Is the product boundary clear? | Pass | Applied — integrity vs factual truth stated at top |
+| Are users and stories complete? | Pass | Applied — 5 MVP stories retained |
+| Are acceptance criteria testable? | Pass | Applied — Register (4) and Verify (5) use **VERIFIED** / **NO MATCH** / **ERROR** |
+| Are constraints complete? | Pass | Applied — Business, Time, Legal / Compliance, Technical, Security, Product |
+| Is design consistent with earlier sketches? | Pass | Applied — context, component, and data summaries aligned |
+| Is verification terminology consistent? | Pass | Applied — removed user-facing **FAILED** wording |
+| Is verification history scoped for MVP? | Pass | Applied — selected **FileRecord** only; no org-wide history |
+| Are any requirements still open? | Open | Applied — MVP file type / size marked **TBD** |
+
+---
+
+## Ready-to-Build Check
+
+- [x] Problem is clear
+- [x] Users are identified
+- [x] MVP scope is bounded
+- [x] Five user stories are defined
+- [x] Core acceptance criteria are testable
+- [x] Constraints are documented
+- [x] Context boundary is understood
+- [x] Components have clear responsibilities
+- [x] Core data relationships are defined
+- [x] Key trade-off is documented
+- [x] Product boundary is explicit
+
+**READY_FOR_DEVELOPMENT:** YES
+
+A developer can start the core **Register → Verify → Result** vertical slice without guessing the product intent, the result model, or the core architecture.
+
+**OPEN_ITEM:** Supported file types and maximum size must be agreed before production acceptance.
+
+Core implementation can begin with a provisional file policy, but production-ready acceptance testing depends on resolving the TBD file type / size requirement.
+
+---
+
+## Key Takeaway
+
+A one-pager combines problem, users, stories, acceptance criteria, constraints, and design into one reviewable artifact.
+
+Clarity beats length. A developer should be able to read this once and understand what to build first.
