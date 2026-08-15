@@ -496,3 +496,156 @@ Requirements discovery helps the team understand real user needs before building
 It separates actual problems from early technical ideas that may not solve the right problem.
 
 **Understand the problem before choosing the solution.**
+
+# User Stories — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Feature focus:** File Integrity Verification
+
+**Product boundary:** ProofChain verifies file integrity against a previously registered version. It does **not** verify whether the information inside the file is factually true.
+
+---
+
+## 1. Main User Stories
+
+### Story 1 — Register a File
+
+**As a** project manager, **I want** to register a file in ProofChain, **so that** my team has a trusted original record for future integrity checks.
+
+### Story 2 — Verify a File
+
+**As a** compliance officer, **I want** to verify an uploaded file against a registered record, **so that** I can confirm whether the file still matches the original version.
+
+### Story 3 — Understand Verification Result
+
+**As a** team member, **I want** to see a clear verification result, **so that** I immediately know whether the file matches or does not match the registered version.
+
+### Story 4 — View Verification History
+
+**As an** external auditor, **I want** to view verification history for a registered file, **so that** I can review when checks were performed and what results were returned.
+
+### Story 5 — Identify Registered Record
+
+**As a** records administrator, **I want** to identify the correct registered record for a file, **so that** verification is performed against the intended original version.
+
+---
+
+## 2. Acceptance Criteria
+
+### Story 1 — Register a File
+
+**Scenario 1 — Valid registration**
+
+**Given** a user uploads a supported file for registration
+**When** the file is processed successfully
+**Then** ProofChain stores the file fingerprint and registration timestamp
+**And** the file is saved as a registered record
+
+**Scenario 2 — Registration result visible**
+
+**Given** a file registration completes successfully
+**When** the user views the confirmation screen
+**Then** the user sees a success message
+**And** the registered file name, record ID, and registration timestamp are displayed
+
+**Scenario 3 — Registered record can later be referenced**
+
+**Given** a file has been registered in ProofChain
+**When** the user opens the record details later
+**Then** the system shows the same record ID and fingerprint reference
+**And** the record can be selected for future verification
+
+**Scenario 4 — Failed registration must not appear successful**
+
+**Given** a file registration fails due to an unsupported file type or processing error
+**When** the registration attempt completes
+**Then** the system shows a failure message
+**And** no registered record is created
+**And** the result is not shown as successful
+
+### Story 2 — Verify a File
+
+**Scenario 1 — Identical file returns VERIFIED**
+
+**Given** a file was previously registered in ProofChain
+**When** the user uploads the same unchanged file for verification
+**Then** the system returns a VERIFIED result
+**And** confirms the current fingerprint matches the registered fingerprint
+
+**Scenario 2 — Modified file returns FAILED**
+
+**Given** a file was previously registered in ProofChain
+**When** the user uploads a modified version of that file
+**Then** the system returns a FAILED or NO MATCH result
+**And** does not show the result as VERIFIED
+
+**Scenario 3 — Correct registered version is used**
+
+**Given** multiple registered records exist for similar files
+**When** the user verifies a file against a selected record ID
+**Then** the system compares the uploaded file only to that registered record
+**And** the result reflects the comparison against the correct original version
+
+**Scenario 4 — Processing failure must never return VERIFIED**
+
+**Given** a verification request is submitted
+**When** the system cannot complete hashing, lookup, or comparison due to a processing or system failure
+**Then** the system returns an error state
+**And** does not return VERIFIED
+
+**Scenario 5 — Clear result shown to user**
+
+**Given** a verification request completes
+**When** the user views the result screen
+**Then** the user sees a clear status of VERIFIED or FAILED / NO MATCH
+**And** the registered file name or record ID used for the check is visible
+
+---
+
+## 3. Epic Split
+
+### Epic
+
+**As an** organization, **I want** a complete document integrity management platform, **so that** I can manage and verify all important digital records.
+
+This epic is too large for one sprint. It should be split into smaller shippable stories:
+
+1. **Register one file** — **As a** project manager, **I want** to register one file with a stored fingerprint and timestamp, **so that** the organization has a trusted original record.
+
+2. **Verify one registered file** — **As a** compliance officer, **I want** to verify one uploaded file against a registered record, **so that** I can confirm whether it still matches the original version.
+
+3. **Display verification result** — **As a** team member, **I want** to see a clear pass/fail verification result, **so that** I know immediately whether the file matches the registered version.
+
+4. **View registration details** — **As a** records administrator, **I want** to view registration details for a file, **so that** I can confirm which original record is stored in ProofChain.
+
+5. **View verification history** — **As an** external auditor, **I want** to view verification history for a registered file, **so that** I can review past checks and outcomes.
+
+6. **Manage access to records** — **As a** security administrator, **I want** to manage which users can view or verify registered records, **so that** sensitive file information stays protected.
+
+Each story can be built, tested, and released independently while moving toward the full epic.
+
+---
+
+## 4. Priority Pass
+
+Stories ordered by **user value** and **risk** (highest priority first):
+
+| Priority | Story | User Value | Risk | Reason |
+|----------|-------|------------|------|--------|
+| 1 | Register a File | High | High | Verification cannot exist without a registered original record |
+| 2 | Verify a File | High | High | Core product outcome; an incorrect result breaks trust |
+| 3 | Understand Verification Result | High | Medium | Users need an immediate, understandable answer after verification |
+| 4 | Identify Registered Record | Medium | High | Verifying against the wrong record creates a false sense of integrity |
+| 5 | View Verification History | Medium | Low | Important for audit review, but not required for the first verification flow |
+
+**Priority rule used:** Deliver registration and verification first, then result clarity, record identification, and history.
+
+---
+
+## 5. Key Takeaway
+
+User stories capture intent from the user's perspective.
+
+Acceptance criteria make "done" testable and reduce misunderstanding.
+
+Small, prioritized stories reduce delivery risk and help teams get feedback faster.
