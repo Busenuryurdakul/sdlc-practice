@@ -206,3 +206,172 @@ In a hybrid approach, teams can combine:
 This mix helps teams stay safe and structured where risk is high, while staying flexible where change is frequent.
 
 **Takeaway:** The best development model depends on risk, regulation, project size, and how often requirements change.
+
+# ProofChain — Digital Content Integrity Verification System
+
+## Product Overview
+
+**ProofChain** helps users verify when a digital file was registered and whether it has changed since then.
+
+When a user uploads a document or image, the system links the file to a verifiable record. ProofChain does **not** claim the content is true. It only checks whether the current file matches the originally registered file.
+
+**Example — verified file:**
+
+```text
+PROOFCHAIN
+
+Document
+inspection-report.pdf
+
+Created record
+15 Aug 2026 — 14:32
+
+Fingerprint
+SHA-256 ✓
+
+Integrity
+✓ VERIFIED
+
+Current file matches
+original registered fingerprint.
+```
+
+**Example — modified file:**
+
+```text
+⚠ INTEGRITY CHECK FAILED
+
+Current fingerprint does not match
+the registered fingerprint.
+```
+
+**MVP scope:**
+
+- Upload a file and register its fingerprint + timestamp
+- Verify a file against the registry
+- Show audit logs for registration and verification events
+
+---
+
+## 1. Case Study — Why Hybrid?
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Model:** Hybrid
+
+1. **Integrity requirements must be defined before coding.** The team must agree on what "verified" means before building features.
+2. **The data model and verification process require careful design.** Fingerprint, timestamp, and registry relationships need upfront architecture work.
+3. **Security-critical functions require strong testing.** A false "VERIFIED" result would break user trust in the entire product.
+4. **Dashboard and UX can evolve through Agile iterations.** Upload flow, reports, and admin screens can improve after the core engine works.
+5. **Additional verification features can be released gradually.** Team accounts, API access, and batch verification can ship in later sprints.
+
+---
+
+## 2. Phase Checklist — Expected Artifacts
+
+| Phase | Expected Artifacts |
+|-------|-------------------|
+| **Requirements** | Integrity requirements doc, verification rules, user stories, acceptance criteria, scope for MVP vs future features |
+| **Design** | Threat model, verification flow diagram, data model, API design, audit trail design, security notes |
+| **Implementation** | Hashing service, verification API, document registry, upload UI, audit logging |
+| **Testing** | Modified-file test cases, duplicate registration tests, security tests, integration tests, test report |
+| **Deployment** | Environment configuration, secrets management, database migrations, rollout plan, rollback plan |
+| **Maintenance** | Monitoring dashboard, failed verification alerts, audit log review, incident response, vulnerability updates |
+
+### Requirements
+
+- [ ] Problem statement and product boundaries documented
+- [ ] User stories for upload, verify, and audit views
+- [ ] Acceptance criteria for VERIFIED vs FAILED states
+- [ ] Non-goals documented (ProofChain does not validate truth of content)
+
+### Design
+
+- [ ] Threat model completed
+- [ ] Data model: file record, fingerprint, timestamp, owner, audit event
+- [ ] Verification flow diagram
+- [ ] API contract for register and verify endpoints
+
+### Implementation
+
+- [ ] SHA-256 fingerprint generation
+- [ ] Registry storage for original records
+- [ ] Verification endpoint comparing current vs registered fingerprint
+- [ ] Audit log for register and verify actions
+
+### Testing
+
+- [ ] Test: unchanged file returns VERIFIED
+- [ ] Test: one-byte change returns INTEGRITY CHECK FAILED
+- [ ] Test: duplicate registration handled correctly
+- [ ] Test: unauthorized access blocked
+
+### Deployment
+
+- [ ] Staging environment validated
+- [ ] Migration tested
+- [ ] Rollback steps documented
+- [ ] Production smoke test completed
+
+### Maintenance
+
+- [ ] Monitoring for verification failures and API errors
+- [ ] Audit log retention policy defined
+- [ ] Incident playbook for false VERIFIED reports
+- [ ] Dependency and security patch process defined
+
+---
+
+## 3. Risk Flag — Design Phase
+
+**Riskiest phase:** Design
+
+If the relationship between **original file → fingerprint → timestamp → verification result** is designed incorrectly, the product loses its core value.
+
+**Example failure:**
+
+```text
+Original file  → fingerprint A
+Modified file  → fingerprint B
+System wrongly shows → ✓ VERIFIED
+```
+
+In this case, users trust a product that cannot detect change. The business and technical credibility of ProofChain collapses.
+
+### Mitigation
+
+1. **Threat modeling in Design.** Identify risks such as registry tampering, replay attacks, and incorrect match logic.
+2. **Design review with explicit pass/fail rules.** Document exactly when the system must return VERIFIED or FAILED.
+3. **Test vectors defined before Implementation.** Include cases where a single character change must fail verification.
+4. **Immutable audit trail.** Record who registered a file, when it was verified, and what result was returned.
+5. **Staging validation before release.** Run known good and known bad files through the full flow before production rollout.
+
+---
+
+## 4. Teach-back — SDLC in Under 2 Minutes
+
+**Audience:** A non-developer friend
+**Goal:** Explain SDLC using ProofChain
+
+---
+
+**Script:**
+
+"Imagine I give you a PDF today. Six months later, someone asks: is this **exactly** the same file?
+
+That is the problem ProofChain solves. But before we build it, we need a clear process. That process is called the **Software Development Life Cycle**, or SDLC.
+
+First, in **Requirements**, we define what the product must do. For ProofChain, we do not say the document is true. We only say whether the current file matches the original registered file.
+
+Next, in **Design**, we plan how verification works. What fingerprint do we store? How do we compare files later? This step is critical because a bad design could show VERIFIED even after a file changes.
+
+Then comes **Implementation**. Developers build the hashing service, registry, and verification checks.
+
+After that, **Testing** checks real scenarios. If one word in the file changes, the result must be FAILED, not VERIFIED.
+
+In **Deployment**, we release the product carefully with migrations, configuration, and rollback plans.
+
+Finally, in **Maintenance**, we monitor errors, review audit logs, and fix issues after launch.
+
+So SDLC is not just coding. It is a step-by-step way to build software safely — especially when trust and accuracy matter."
+
+**Estimated time:** ~90–120 seconds
