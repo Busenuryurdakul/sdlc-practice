@@ -1611,3 +1611,189 @@ Use unit, integration, and E2E tests together — each level catches failures th
 Map tests directly to user story acceptance criteria so quality is measurable, not assumed.
 
 Quality is shared ownership: developers build it in continuously, QA deepens it, and bug handling should move quickly from report to verified close.
+
+# Release & CI — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+
+Releasing software is a controlled SDLC activity, not only a deployment command.
+
+A healthy release process combines automated quality gates, readiness checks, monitoring, and a safe rollback strategy.
+
+**Sample release:** ProofChain v0.1.0 — File Registration & Verification MVP
+
+**Product boundary:** ProofChain verifies whether a file matches a previously registered **FileVersion**. It does **not** determine whether information inside the file is factually true.
+
+User-facing results are **VERIFIED**, **NO MATCH**, or **ERROR** only.
+
+---
+
+## 1. Release Checklist
+
+### Before Release
+
+- [ ] Acceptance criteria completed
+- [ ] Code review approved
+- [ ] CI checks passing
+- [ ] Unit tests passing
+- [ ] Integration tests passing
+- [ ] Critical E2E verification journeys passing
+- [ ] No unresolved critical/high defects
+- [ ] Security/auth behavior reviewed
+- [ ] Documentation/changelog prepared
+
+### Database / Configuration
+
+- [ ] Database migrations reviewed
+- [ ] Migration compatibility checked
+- [ ] Backup/recovery considerations reviewed
+- [ ] Required environment configuration documented
+- [ ] Feature flags have safe defaults
+- [ ] Secrets are not committed to source control
+
+**Feature flag example:**
+
+```text
+PROOFCHAIN_FILE_VERIFICATION_ENABLED=false
+```
+
+The flag can be enabled in a controlled way during release.
+
+A feature flag supports controlled exposure and rollback mitigation. It does **not** replace database migrations or testing.
+
+### Deployment
+
+- [ ] Deploy approved build artifact
+- [ ] Confirm migration status
+- [ ] Confirm application health
+- [ ] Enable feature flag only when dependencies are ready
+- [ ] Record deployed version
+
+### Smoke Test
+
+Run a small post-deploy confidence check — not a full regression suite.
+
+1. Application health endpoint responds successfully
+2. User can register a file
+3. Same file verification returns **VERIFIED**
+4. Modified file verification returns **NO MATCH**
+5. **VerificationEvent** and **AuditEntry** are created
+
+### After Release
+
+- [ ] Monitor errors
+- [ ] Monitor latency
+- [ ] Monitor verification failures
+- [ ] Watch for unexpected **VERIFIED** results
+- [ ] Confirm audit events continue to be recorded
+- [ ] Keep rollback decision window active
+
+---
+
+## 2. Continuous Integration as a Quality Gate
+
+CI is more than "tests run automatically." It provides repeatable evidence before merge and release.
+
+```text
+Developer
+  → Feature Branch
+  → Pull Request
+  → CI
+  → Review
+  → Merge
+  → Release
+```
+
+**Example CI quality gates:**
+
+1. Formatting / lint
+2. Static analysis
+3. Unit tests
+4. Integration tests
+5. Security / dependency checks
+6. Build verification
+
+**What CI provides:**
+
+- CI provides repeatable evidence.
+- CI does **not** replace human review.
+
+Human judgment is still required for:
+
+- Architecture
+- Product intent
+- Security context
+- Maintainability
+- Risk
+
+Failed required CI checks should block merge.
+
+For ProofChain, CI helps prevent integrity regressions such as modified files returning **VERIFIED** before code reaches production.
+
+---
+
+## 3. Rollback / Mitigation Plan
+
+**Sample bad release:** Modified files are incorrectly returning **VERIFIED**.
+
+**Severity:** HIGH — this breaks ProofChain's core integrity guarantee. Users may trust changed content as unchanged, and audit history becomes misleading.
+
+**Response plan:**
+
+| Step | Action |
+|------|--------|
+| 1. **Detect** | Monitoring, support report, or smoke test identifies the problem |
+| 2. **Stop / Contain** | Prevent new verification traffic from producing risky results |
+| 3. **Disable Feature** | Set `PROOFCHAIN_FILE_VERIFICATION_ENABLED=false` to shut down the verification flow; if no flag exists, move to application rollback |
+| 4. **Assess Data Impact** | Identify affected **VerificationEvent** records and the time window; do not silently delete incorrect **VERIFIED** results — preserve the audit trail |
+| 5. **Roll Back Application** | Return to the last known-good application version |
+| 6. **Verify Recovery** | Re-run smoke tests: health, register, **VERIFIED**, **NO MATCH**, audit recording |
+| 7. **Communicate and Follow Up** | Create an incident record, notify affected users/stakeholders if needed, and add root cause + regression test + prevention action |
+
+**Database rollback caution:**
+
+Do not assume database rollback is automatic or safe.
+
+Forward-compatible migrations are preferred. Destructive database rollback must be evaluated separately with backup, compatibility, and data-impact analysis.
+
+**Rollback vs mitigation:**
+
+- **Rollback** = return to a previous known-good application version
+- **Mitigation** = temporary risk reduction such as feature disable or traffic containment while investigation continues
+
+---
+
+## 4. Version Note
+
+## ProofChain v0.1.0
+
+### Added
+
+- File registration with **FileVersion** records
+- Fingerprint-based integrity verification
+- **VERIFIED**, **NO MATCH**, and **ERROR** result states
+- **VerificationEvent** and **AuditEntry** recording
+- Basic authorization for protected verification flows
+
+### Quality
+
+- Unit, integration, and critical E2E coverage
+- CI quality gates
+- Release smoke-test checklist
+
+### Known Limitations
+
+- Supported file types remain **TBD**
+- Maximum supported file size remains **TBD**
+- Advanced role-management UI is out of scope for v0.1.0
+- ProofChain verifies file integrity, not factual truth
+
+---
+
+## 5. Release Principles
+
+1. Build once, promote the same artifact.
+2. Prefer backward-compatible database changes.
+3. Use feature flags for controlled exposure, not as a substitute for testing.
+4. Every release needs observable health signals.
+5. Rollback must be planned before deployment.
