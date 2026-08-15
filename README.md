@@ -1065,3 +1065,212 @@ Core implementation can begin with a provisional file policy, but production-rea
 A one-pager combines problem, users, stories, acceptance criteria, constraints, and design into one reviewable artifact.
 
 Clarity beats length. A developer should be able to read this once and understand what to build first.
+
+# Implementation Discipline — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Story in focus:** Story 2 — Verify a File
+
+**Story reminder:** **As a** compliance officer, **I want** to verify an uploaded file against a registered record, **so that** I can confirm it still matches the registered version.
+
+**Expected results:** **VERIFIED**, **NO MATCH**, or **ERROR** — never show **ERROR** or **NO MATCH** as **VERIFIED**.
+
+**OPEN_DEPENDENCY:** Supported file types and maximum file size remain **TBD**. This does not fully block core verification orchestration, but it must be resolved before production performance and acceptance decisions are finalized.
+
+---
+
+## 1. Slice Work
+
+Break **Story 2 — Verify a File** into implementation tasks.
+
+**Verification flow:**
+
+```text
+submitted file
+→ calculate fingerprint
+→ load selected FileVersion
+→ retrieve stored Fingerprint
+→ compare
+→ VERIFIED / NO MATCH / ERROR
+→ VerificationEvent
+→ AuditEntry
+```
+
+### API
+
+- [ ] Add `POST /verify` endpoint with verification request/response contract
+- [ ] Accept uploaded file and selected target `FileVersion` / record ID
+- [ ] Enforce authorization before verification
+- [ ] Calculate fingerprint for the submitted file
+- [ ] Load selected **FileVersion** and retrieve stored **Fingerprint**
+- [ ] Compare the calculated fingerprint of the submitted file against the stored **Fingerprint** for the selected **FileVersion**
+- [ ] Return **VERIFIED**, **NO MATCH**, or **ERROR** with record metadata
+- [ ] Record **VerificationEvent** and **AuditEntry**
+
+### UI
+
+- [ ] Add verify screen with file upload and record/version selector
+- [ ] Submit the selected file and target **FileVersion** for verification
+- [ ] Show loading state while verification runs
+- [ ] Display result using **VERIFIED**, **NO MATCH**, or **ERROR**
+- [ ] Show record ID, file name, and timestamp used for the check
+- [ ] Provide clear next-step message for **NO MATCH** and **ERROR**
+
+### Tests
+
+- [ ] Identical file → **VERIFIED**
+- [ ] Modified or different file → **NO MATCH**
+- [ ] Processing failure → **ERROR**
+- [ ] **ERROR** must never become **VERIFIED**
+- [ ] Correct **FileVersion** is used
+- [ ] Unauthorized request is rejected
+- [ ] **VerificationEvent** is recorded
+- [ ] **AuditEntry** is recorded
+
+### Docs
+
+- [ ] Document verification API request/response contract
+- [ ] Document verification flow
+- [ ] Document result terminology (**VERIFIED** / **NO MATCH** / **ERROR**)
+- [ ] Note remaining open requirement: supported file types and maximum file size remain **TBD**
+
+---
+
+## 2. Branch Mentality
+
+**Never implement this story directly on `main`.**
+
+Use one feature branch with small logical commits inside it.
+
+**Safe workflow:**
+
+1. Switch to `main`
+2. Pull / update `main`
+3. Confirm clean working tree
+4. Create `feature/verify-file-story`
+5. Implement the smallest coherent change
+6. Run relevant tests
+7. Create one small logical commit
+8. Continue with the next slice
+9. Run full validation
+10. Push the feature branch
+11. Open a pull request
+12. Pass CI and review
+13. Merge only after checks pass
+
+**Example branch:** `feature/verify-file-story`
+
+**Example commits on the same feature branch:**
+
+```text
+feat(verification): define verification contract
+feat(verification): compare file fingerprints
+test(verification): cover verification outcomes
+feat(web): add verification flow
+docs: document verification behavior
+```
+
+These are **not separate branches**. They are small logical commits inside one feature branch.
+
+---
+
+## 3. Definition of Done — Coding
+
+A story is done only when all items below are satisfied:
+
+- [ ] Story acceptance criteria are satisfied
+- [ ] Code follows the agreed ProofChain design
+- [ ] Unit tests pass
+- [ ] Integration / API tests pass where applicable
+- [ ] **VERIFIED** / **NO MATCH** / **ERROR** outcomes are tested
+- [ ] Error paths are tested
+- [ ] Authorization behavior is tested
+- [ ] **VerificationEvent** recording is verified
+- [ ] **AuditEntry** recording is verified
+- [ ] Lint and formatting checks pass
+- [ ] Documentation is updated
+- [ ] Code review is completed
+- [ ] CI checks pass
+- [ ] No unresolved critical or high-severity defects remain
+
+**"Code written" alone does not mean Done.**
+
+**Story-level done:** all slice tasks complete, PR merged, and verification flow demo works end to end.
+
+---
+
+## 4. Spike vs Build
+
+### Full Story Decision
+
+**FULL_STORY_SPIKE_REQUIRED:** **NO**
+
+The known parts of the verification story can be built directly:
+
+- API orchestration
+- **FileVersion** lookup
+- Stored fingerprint retrieval
+- Fingerprint comparison
+- **VERIFIED** / **NO MATCH** / **ERROR** mapping
+- **VerificationEvent**
+- **AuditEntry**
+- Basic UI flow
+- Authorization
+
+### Targeted Technical Spike
+
+**TARGETED_FINGERPRINT_SPIKE:** **YES**
+
+Supported file types and maximum file size remain **OPEN / TBD**, so fingerprint processing strategy is still technically uncertain.
+
+Questions to research in a time-boxed spike:
+
+- Should hashing process the entire file in memory?
+- Can hashing be streamed?
+- How does file size affect processing time?
+- How does file size affect memory usage?
+- Should verification always be synchronous?
+- Under what future conditions might background processing be appropriate?
+
+**Important:** Do not invent a maximum file size or production threshold. A spike is not a production feature. It is time-boxed technical research.
+
+### Spike Exit Criteria
+
+- [ ] Hashing behavior is tested with representative file sizes.
+- [ ] Processing time is observed and recorded.
+- [ ] Memory behavior is observed and recorded.
+- [ ] Streaming feasibility is confirmed and documented.
+- [ ] A sync vs background-processing recommendation is documented.
+
+When the spike is complete, the developer should be able to choose an implementation strategy without guessing.
+
+| Situation | Choice | ProofChain example |
+|-----------|--------|-------------------|
+| Verification workflow is already defined | **Build** | Implement verify API, UI, events, and audit |
+| Fingerprint processing strategy is uncertain | **Spike** | Research memory vs streaming hashing with representative files |
+| Acceptance criteria and design already exist | **Build** | Map comparison result to **VERIFIED** / **NO MATCH** / **ERROR** |
+
+---
+
+## 5. Implementation Boundary
+
+This story does **not** include:
+
+- Factual truth verification
+- AI truth detection
+- Blockchain
+- Permanent full-file archival by default
+- Organization-wide global verification history
+- Advanced enterprise permission-management UI
+
+ProofChain verifies integrity against a selected previously registered **FileVersion** only.
+
+---
+
+## 6. Key Takeaway
+
+Implementation stays predictable when work is sliced into small tasks across API, UI, tests, and docs.
+
+Use one feature branch, small logical commits, and a clear Definition of Done.
+
+Build the known verification workflow now, run a targeted fingerprint spike for open file-size uncertainty, and keep product scope limited to integrity verification.
