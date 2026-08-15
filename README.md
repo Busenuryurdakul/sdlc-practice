@@ -1465,3 +1465,149 @@ Code review is a quality and knowledge-sharing gate in the SDLC, not a contest a
 Feedback should be specific, respectful, and proportional to risk.
 
 Blocking comments should protect correctness and security; minor preferences should not unnecessarily block delivery.
+
+# Testing — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Context:** Quality for **Story 2 — Verify a File**
+
+Testing is a continuous life-cycle activity, not a final surprise phase. Different levels catch different failures. Everyone owns quality — QA deepens it, but developers do not outsource it entirely.
+
+ProofChain verifies whether a file matches a **selected previously registered FileVersion** (integrity only). It does **not** perform factual truth verification, AI truth detection, or blockchain validation.
+
+User-facing results are **VERIFIED**, **NO MATCH**, or **ERROR** only.
+
+---
+
+## 1. Testing Levels
+
+| Level | What it checks | ProofChain example |
+|-------|----------------|-------------------|
+| **Unit** | One function or module in isolation | `compare_fingerprints(stored, uploaded)` returns **NO MATCH** when hashes differ |
+| **Integration** | Two or more components working together | Verification API reads stored **Fingerprint**, checks authorization, and persists **VerificationEvent** / **AuditEntry** |
+| **End-to-end (E2E)** | Full user flow through the real system | Authorized user uploads an identical file in the UI and sees **VERIFIED** with the correct record reference |
+
+**How they differ:**
+
+- **Unit tests** are fast and precise. They catch logic bugs such as returning **VERIFIED** on mismatch.
+- **Integration tests** catch wiring problems such as wrong **FileVersion** lookup, missing audit recording, or unauthorized access slipping through service boundaries.
+- **E2E tests** catch user-facing gaps such as broken upload flow, wrong screen text, or authorization bypass in the full path.
+
+---
+
+## 2. Map Tests to a User Story
+
+**Story:** Story 2 — Verify a File
+
+**As a** compliance officer, **I want** to verify an uploaded file, **so that** I can confirm it still matches the registered version.
+
+### Unit Tests
+
+1. Matching fingerprints → **VERIFIED**
+2. Different fingerprints → **NO MATCH**
+3. Mismatch must never produce **VERIFIED**
+4. Invalid fingerprint input is handled safely
+5. Result mapping only produces **VERIFIED**, **NO MATCH**, or **ERROR**
+
+### Integration Tests
+
+1. Authorized request + matching file → **VERIFIED**
+2. Authorized request + modified file → **NO MATCH**
+3. Processing failure → **ERROR**
+4. Unauthorized request is rejected
+5. Correct **FileVersion** and stored **Fingerprint** are used
+6. **VerificationEvent** and **AuditEntry** are persisted correctly
+
+### End-to-End Tests
+
+1. Unchanged file → **VERIFIED** shown
+2. Modified file → **NO MATCH** shown
+3. Processing failure → **ERROR** shown
+4. Unauthorized user cannot complete protected verification
+
+---
+
+## 3. Testing Strategy
+
+```text
+            E2E
+        Integration
+           Unit
+```
+
+Use the pyramid intentionally:
+
+- **Many fast unit tests** for fingerprint comparison and result mapping
+- **Fewer integration tests** for API + **FileVersion** / **Fingerprint** + authorization + audit
+- **A smaller number of high-value E2E tests** for critical Verify a File user journeys
+
+Each level has a different cost and failure-detection strength. Balance coverage with maintainability rather than assuming more E2E tests are always better.
+
+---
+
+## 4. Bug Life Cycle
+
+| Step | What happens |
+|------|--------------|
+| 1. **Report** | Bug is logged with observed behavior, expected behavior, environment, and supporting evidence |
+| 2. **Reproduce** | Team confirms the issue can be reproduced reliably using documented steps |
+| 3. **Triage** | Team assesses severity, impact, reproducibility, and priority; assigns an owner |
+| 4. **Fix** | Developer implements the correction and adds or updates tests |
+| 5. **Developer Verification** | Developer confirms the fix locally with relevant unit/integration tests and failure-path checks |
+| 6. **QA / Review Verification** | Fix is independently re-tested and related regression cases are checked |
+| 7. **Close** | Bug is closed only after verification passes |
+
+**ProofChain example:**
+
+Modified file is incorrectly shown as **VERIFIED**.
+
+- **Report:** "Upload changed PDF for record R-102 → expected **NO MATCH**, got **VERIFIED**"
+- **Reproduce:** Repeat with the same registered **FileVersion**, changed file bytes, and authorized user; mismatch result appears consistently
+- **Triage:**
+  - **Severity:** HIGH — breaks ProofChain's core integrity guarantee that modified files must not appear valid
+  - **Impact:** Users may trust a changed document as unchanged; audit trail becomes misleading
+  - **Reproducibility:** Confirmed on staging with two changed PDF uploads
+  - **Priority:** Fix before merge / release
+- **Fix:** Correct mismatch mapping in verification logic; add regression test proving changed files never return **VERIFIED**
+- **Developer Verification:** Run unit tests for mismatch mapping and integration tests for modified file → **NO MATCH** plus **ERROR** failure path
+- **QA / Review Verification:** QA independently repeats identical/modified/failure scenarios and checks no regression in **VerificationEvent** / **AuditEntry** recording
+- **Close:** Close only after fix verification and regression pass
+
+---
+
+## 5. Quality != Only QA
+
+Developers are responsible for quality **before** handoff. QA adds depth, but the team should not treat testing as someone else's final gate.
+
+**Quality is shared ownership.**
+
+**Developer responsibilities before handoff:**
+
+- [ ] Understand acceptance criteria before coding
+- [ ] Keep implementation aligned with agreed design
+- [ ] Write unit tests
+- [ ] Add integration tests where appropriate
+- [ ] Test failure and error paths
+- [ ] Test authorization and security behavior
+- [ ] Verify **VerificationEvent** and **AuditEntry** behavior
+- [ ] Run lint, formatting, and static checks
+- [ ] Update relevant documentation
+- [ ] Self-review the diff before requesting review
+
+**What QA still adds:**
+
+- **Exploratory testing** beyond scripted cases
+- **Broader system behavior** across modules and workflows
+- **Regression coverage** across stories and releases
+- **User-facing risks** such as confusing result screens or broken upload flows
+- **Independent verification** before release or merge approval
+
+---
+
+## 6. Key Takeaway
+
+Use unit, integration, and E2E tests together — each level catches failures the others may miss.
+
+Map tests directly to user story acceptance criteria so quality is measurable, not assumed.
+
+Quality is shared ownership: developers build it in continuously, QA deepens it, and bug handling should move quickly from report to verified close.
