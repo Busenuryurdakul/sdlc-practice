@@ -129,3 +129,80 @@ Before a production release, testing should be done when:
 | **Test** | QA checks colors, readability, and the toggle on all screens. |
 | **Release** | DevOps deploys the update to production for all users. |
 | **Monitor** | Team watches for bugs and user feedback after launch. |
+
+# Waterfall, Agile, and Hybrid
+
+## 1. Waterfall Sketch
+
+Waterfall is a sequential SDLC model. Each phase must be completed before the next one starts. The team moves forward in a fixed order and does not go back to earlier phases easily.
+
+**Linear flow:**
+
+```
+Requirements → Design → Implementation → Testing → Deployment → Maintenance
+```
+
+Waterfall is a more sequential model. One phase is finished before the team moves to the next phase.
+
+### Strengths
+
+- Clear structure and documentation at each stage.
+- Easy to plan timelines, budgets, and milestones upfront.
+
+### Weaknesses
+
+- Hard to change requirements after a phase is done.
+- Users see working software late in the project.
+
+## 2. Agile Sketch
+
+Agile is a flexible SDLC approach. Teams work in small cycles and deliver value early and often. Instead of planning everything upfront, they learn and adapt as they go.
+
+Key ideas:
+
+- **Short iterations:** Work happens in small time boxes (sprints), usually 1–4 weeks.
+- **Working software:** Each iteration aims to deliver usable features, not just documents.
+- **Frequent feedback:** Teams review progress often with users and stakeholders.
+- **Changing priorities:** Requirements can shift based on new needs or market changes.
+- **Continuous improvement:** Teams reflect after each cycle and improve how they work.
+
+**Simple cycle:**
+
+```
+Plan → Build → Test → Review → Feedback → Repeat
+```
+
+## 3. Project Comparison
+
+### Bank Core System
+
+A bank core system handles accounts, transactions, and sensitive financial data. This type of project needs strong regulation, security, and data integrity. Mistakes can cause legal problems, financial loss, and loss of customer trust.
+
+Because the risk is high, teams often need detailed upfront planning, strict design reviews, and thorough testing before release. A Waterfall or more plan-driven hybrid approach fits well here. Security and compliance rules must be defined early and followed carefully.
+
+**Bank Core System → Hybrid / Waterfall-oriented**
+
+### Marketing Landing Page
+
+A marketing landing page is usually smaller and changes more often. Teams may test headlines, layouts, colors, and call-to-action buttons to improve conversion rates. Analytics and user feedback help them learn quickly what works.
+
+Agile fits better here because teams can ship small updates fast, run experiments, and respond to results without long planning cycles.
+
+**Marketing Landing Page → Agile**
+
+## 4. Hybrid Reality
+
+Most real software teams do not use only Waterfall or only Agile. They mix practices based on project needs.
+
+In a hybrid approach, teams can combine:
+
+- **Upfront planning** for major goals and constraints
+- **Architecture** decisions for stable system structure
+- **Security requirements** defined early for sensitive areas
+- **Short development iterations** for building and delivering features
+- **Continuous testing** throughout the cycle
+- **User feedback** to guide improvements
+
+This mix helps teams stay safe and structured where risk is high, while staying flexible where change is frequent.
+
+**Takeaway:** The best development model depends on risk, regulation, project size, and how often requirements change.
