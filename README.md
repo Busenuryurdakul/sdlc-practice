@@ -1274,3 +1274,194 @@ Implementation stays predictable when work is sliced into small tasks across API
 Use one feature branch, small logical commits, and a clear Definition of Done.
 
 Build the known verification workflow now, run a targeted fingerprint spike for open file-size uncertainty, and keep product scope limited to integrity verification.
+
+# Code Review & PR Hygiene — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Context:** Reviewing changes for **Story 2 — Verify a File**
+
+**Review focus:** correctness, tests, naming, security, clarity, and product boundary.
+
+---
+
+## 1. Review Checklist
+
+Use this checklist when reviewing ProofChain code:
+
+| # | Check | Question |
+|---|-------|----------|
+| 1 | **Correctness** | Does verification compare the uploaded file against the selected **FileVersion** fingerprint correctly? |
+| 2 | **Result mapping** | Are outcomes mapped only to **VERIFIED**, **NO MATCH**, or **ERROR**? |
+| 3 | **Failure safety** | Can **ERROR** or **NO MATCH** ever be shown as **VERIFIED**? |
+| 4 | **Tests** | Do tests cover identical file, modified file, processing failure, and authorization? |
+| 5 | **Events / audit** | Are **VerificationEvent** and **AuditEntry** recorded for verification attempts? |
+| 6 | **Naming / readability** | Are names clear (`FileVersion`, `Fingerprint`, `VerificationEvent`) and consistent with the spec? |
+| 7 | **Authorization / security** | Is authorization checked before reading protected records or returning history? |
+| 8 | **Error handling** | Are processing failures handled explicitly instead of silently defaulting to success? |
+| 9 | **Scope** | Does the change avoid truth-checking, blockchain, or unrelated feature creep? |
+| 10 | **Documentation / CI** | Is relevant documentation updated, do formatting/lint checks pass, and are required CI checks green? |
+
+---
+
+## 2. Give Feedback
+
+> This is a fictional pseudocode diff created only for code-review practice. It is not production ProofChain code.
+
+### Sample diff
+
+```diff
+diff --git a/verify_service.py b/verify_service.py
+index 1111111..2222222 100644
+--- a/verify_service.py
++++ b/verify_service.py
+@@ -10,8 +10,12 @@ def verify_file(uploaded_file, record_id):
+-    stored_hash = db.get_latest_hash(record_id)
++    stored_hash = db.get_latest_hash(record_id)
+     uploaded_hash = hash_file(uploaded_file)
+-    if uploaded_hash == stored_hash:
+-        return "VERIFIED"
+-    return "FAILED"
++    if uploaded_hash == stored_hash:
++        return {"status": "VERIFIED"}
++    return {"status": "VERIFIED", "note": "close enough"}
+```
+
+**Expected behavior:**
+
+- match → **VERIFIED**
+- mismatch → **NO MATCH**
+- processing failure → **ERROR**
+
+### Kind comment
+
+> Non-blocking: could we rename `record_id` to `file_version_id` here? Verification is performed against a specific registered **FileVersion**, so the more precise name would make the intent easier to follow.
+
+### Necessary critical comment
+
+> **Blocking:** This change can return **VERIFIED** when fingerprints do not match (`"close enough"`). That would allow a modified file to appear valid, which breaks the core ProofChain integrity rule. Non-matching fingerprints must return **NO MATCH**. Please fix the mismatch path and add a test that proves a changed file never returns **VERIFIED**.
+
+---
+
+## 3. Receive Feedback
+
+### Sample review comment you disagree with
+
+> "Fingerprint comparison should be moved into a separate microservice before this PR is merged."
+
+### Professional response
+
+> Thanks for the feedback. I understand the independent scaling concern. For the current ProofChain MVP, hashing and fingerprint comparison are logical modules inside one application, not separately deployed microservices. I suggest keeping the existing boundary for this vertical slice and revisiting extraction only if profiling or scaling evidence shows it is needed.
+
+**Response habits:**
+
+- Acknowledge the reviewer's concern
+- Explain the current design boundary calmly
+- Tie the answer to the agreed MVP architecture
+- Stay open to revisiting the decision with evidence
+
+---
+
+## 4. PR Hygiene
+
+A good ProofChain pull request description should include:
+
+| # | Section | What to include |
+|---|---------|-----------------|
+| 1 | **What changed** | The main code or behavior added or updated |
+| 2 | **Why it changed** | The user or business reason for the change |
+| 3 | **Related story / requirement** | Which user story, spec item, or slice this PR completes |
+| 4 | **Scope** | What is included in this PR |
+| 5 | **Out of scope** | What is intentionally not included |
+| 6 | **How it was tested** | Tests run and manual checks performed |
+| 7 | **Important design decisions** | Key trade-offs or architecture choices made in the PR |
+| 8 | **Risks / known limitations** | Remaining risks, open dependencies, or unresolved constraints |
+| 9 | **Screenshots or API examples** | UI screenshots or request/response examples when relevant |
+| 10 | **Reviewer focus areas** | Where reviewers should spend the most attention |
+
+**Good PR habits:**
+
+- Keep PRs small and focused on one story or slice
+- Use a clear title such as `feat(verification): compare uploaded file fingerprint`
+- List acceptance criteria satisfied
+- Mention risk areas such as authorization and false **VERIFIED**
+- Do not merge your own PR without review
+
+---
+
+### Example PR — Verify a File
+
+#### Summary
+
+Implements **Story 2 — Verify a File** so an authorized user can upload a file and check whether it matches a previously registered **FileVersion**.
+
+#### Why
+
+Users need to confirm that a shared file still matches the registered original version without guessing from file name or size alone.
+
+#### Changes
+
+- Adds verification request/response flow
+- Calculates uploaded file fingerprint
+- Compares it with stored **Fingerprint**
+- Returns **VERIFIED**, **NO MATCH**, or **ERROR**
+- Records **VerificationEvent** and **AuditEntry**
+- Adds basic verification UI
+
+#### Testing
+
+- Identical file → **VERIFIED**
+- Different file → **NO MATCH**
+- Processing failure → **ERROR**
+- Unauthorized request rejected
+- **VerificationEvent** and **AuditEntry** verified
+
+#### Out of Scope
+
+- Factual truth verification
+- AI truth detection
+- Blockchain
+- Permanent full-file archival
+- Advanced enterprise permission UI
+
+#### Known Limitations
+
+Supported file types and maximum file size remain **TBD**. A targeted fingerprint-processing spike will explore how this uncertainty affects implementation strategy. No production size threshold is defined yet.
+
+#### Reviewer Focus
+
+Reviewers should focus on:
+
+- **VERIFIED** / **NO MATCH** / **ERROR** mapping
+- False **VERIFIED** risk
+- Authorization behavior
+- Correct **FileVersion** selection
+- **VerificationEvent** / **AuditEntry** recording
+
+---
+
+## 5. Review Priorities
+
+Review comments should follow this priority order:
+
+1. **Correctness**
+2. **Security / data protection**
+3. **Failure behavior**
+4. **Tests**
+5. **Maintainability / clarity**
+6. **Style**
+
+A naming preference and an integrity bug do not have the same severity.
+
+For example, renaming `record_id` to `file_version_id` can be a **non-blocking** readability suggestion.
+
+Returning **VERIFIED** for a modified file is a **blocking** issue and must be fixed before merge.
+
+---
+
+## 6. Key Takeaway
+
+Code review is a quality and knowledge-sharing gate in the SDLC, not a contest about who is right.
+
+Feedback should be specific, respectful, and proportional to risk.
+
+Blocking comments should protect correctness and security; minor preferences should not unnecessarily block delivery.
