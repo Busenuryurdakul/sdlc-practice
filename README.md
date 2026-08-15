@@ -2331,3 +2331,429 @@ All of these sources can create input for triage and, when validated, can become
 5. Feed learning back into requirements and future work.
 
 A retrospective without follow-up actions is only a conversation.
+
+# SDLC Capstone — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Feature:** File Integrity Verification
+**Capstone Goal:** Plan one thin feature through the complete SDLC.
+
+This capstone plans a thin end-to-end slice rather than a large unfinished system.
+
+**Product boundary:** ProofChain verifies whether an uploaded file matches a previously registered **FileVersion**.
+
+ProofChain does **not**:
+
+- determine factual truth
+- perform AI content detection
+- require blockchain
+- archive every full file permanently
+
+**User-facing verification results:** **VERIFIED**, **NO MATCH**, **ERROR**
+
+---
+
+## 1. Feature Selection
+
+**Problem:** A user needs a reliable way to determine whether a file still matches a previously registered **FileVersion**.
+
+**Primary user:** Compliance officer
+
+**Secondary users:** Project manager, team member, external auditor
+
+**In scope:**
+
+- Select registered **FileRecord** / **FileVersion**
+- Upload file
+- Calculate **Fingerprint**
+- Compare against stored **Fingerprint**
+- Return **VERIFIED**, **NO MATCH**, or **ERROR**
+- Record **VerificationEvent** and **AuditEntry**
+- Basic authorization
+- Selected-record verification history (supporting audit capability)
+
+**Out of scope:**
+
+- Factual truth verification
+- AI content analysis
+- Blockchain
+- Permanent full-file archival
+- Batch verification
+- Organization-wide analytics
+- Advanced permission-management UI
+
+**Open dependency:** Supported file types and maximum file size remain **TBD**.
+
+---
+
+## 2. Requirements
+
+### Main User Stories
+
+1. **Register a trusted file/version** — **As a** project manager, **I want** to register a file version, **so that** the organization has a trusted reference for later integrity checks.
+2. **Verify a file against a FileVersion** — **As a** compliance officer, **I want** to verify an uploaded file, **so that** I can confirm it still matches the registered version.
+3. **Understand the verification result** — **As a** team member, **I want** a clear result explanation, **so that** I know whether the file matched, did not match, or failed to process.
+4. **View verification history for the selected record** — **As an** external auditor, **I want** to view verification history for a selected **FileRecord**, **so that** I can review past checks and outcomes.
+5. **Identify the correct registered record/version** — **As a** records administrator, **I want** to identify the correct registered record/version, **so that** verification runs against the intended original.
+
+### Acceptance Criteria — Story 1 (Register)
+
+1. **Given** an authorized user uploads a supported file, **when** registration succeeds, **then** ProofChain stores a **Fingerprint** and metadata for a new **FileVersion**.
+2. **Given** registration completes, **when** the user views confirmation, **then** the **FileRecord** ID, file name, and timestamp are shown.
+3. **Given** a file is registered, **when** the record is referenced later, **then** the selected **FileVersion** can be used for verification.
+4. **Given** an unauthorized user, **when** they attempt registration on a protected workflow, **then** the request is rejected.
+
+### Acceptance Criteria — Story 2 (Verify)
+
+1. **Given** an authorized user uploads an identical file for the selected **FileVersion**, **when** verification completes, **then** the result is **VERIFIED**.
+2. **Given** an authorized user uploads a modified file, **when** verification completes, **then** the result is **NO MATCH**.
+3. **Given** fingerprint processing fails, **when** verification cannot complete safely, **then** the result is **ERROR**.
+4. **Given** an unauthorized user or wrong protected record access, **when** verification is attempted, **then** the request is rejected.
+5. **Given** any mismatch or failure path, **when** the result is returned, **then** it must **never** be **VERIFIED**.
+
+### Constraints
+
+| Category | Constraint |
+|----------|------------|
+| **Business** | MVP focuses on register + verify before advanced analytics |
+| **Time** | Deliver thin vertical slice in planned sprint cycles |
+| **Legal / Compliance** | Privacy, retention, and audit handling require expert review |
+| **Technical** | SHA-256 fingerprinting; **ERROR** and **NO MATCH** must never become **VERIFIED** |
+| **Security** | Identity Provider authentication; protected records require authorized access |
+| **Product** | Store fingerprint + metadata by default, not full file content; supported file types and max size remain **TBD** |
+
+---
+
+## 3. SDLC Model Choice
+
+**Choice:** **Hybrid — Agile delivery with controlled release gates**
+
+**Agile practices:**
+
+- Small stories
+- Short feedback loops
+- Iterative implementation
+- Small PRs
+- Incremental delivery
+
+**Controlled gates:**
+
+- CI
+- Security review
+- Migration review
+- Staging
+- Production approval
+- Rollback readiness
+
+**Why not pure Waterfall?** ProofChain has open dependencies (**TBD** file types/size) and needs learning from spikes and review before locking every detail upfront.
+
+**Why not uncontrolled Agile?** Integrity, authorization, and audit behavior need explicit gates so a rushed iteration cannot ship false **VERIFIED** results to production.
+
+---
+
+## 4. Design Sketch
+
+### Context Sketch
+
+```text
+Actors: Compliance Officer, Project Manager, Team Member,
+        External Auditor, Records Admin
+        ↓
+ProofChain Application
+        ↓
+External Dependencies: Identity Provider, Optional Object Storage
+```
+
+Audit remains inside ProofChain through **VerificationEvent** and **AuditEntry**.
+
+### Logical Components
+
+These are logical components within one application, not separate microservices.
+
+| Component | Responsibility |
+|-----------|------------------|
+| **Web UI** | Register, verify, result display, selected-record history view |
+| **Verification API** | Orchestrate verify/register requests and mapped results |
+| **Authorization Layer** | Enforce access to protected **FileRecord** / **FileVersion** data |
+| **Hashing Module** | Calculate uploaded-file **Fingerprint** |
+| **Registry DB** | Persist **FileRecord**, **FileVersion**, **Fingerprint** |
+| **Audit Module** | Persist **VerificationEvent** and **AuditEntry** |
+| **Background Job capability** | Used only if targeted fingerprint spike recommends async processing |
+
+### Data Sketch
+
+**Entities:** User, **FileRecord**, **FileVersion**, **Fingerprint**, **VerificationEvent**, **AuditEntry**
+
+```text
+FileRecord
+  → FileVersion
+      → Fingerprint
+      → VerificationEvent
+
+User
+  → VerificationEvent
+
+Domain activity
+  → AuditEntry
+```
+
+---
+
+## 5. Build Plan
+
+| Step | Work | Primary owner layer |
+|------|------|---------------------|
+| 1 | Verification API contract | API |
+| 2 | Authorization | API + security |
+| 3 | **FileRecord** / **FileVersion** selection | API + UI |
+| 4 | Stored **Fingerprint** lookup | API + persistence |
+| 5 | Uploaded-file fingerprint calculation | Hashing module |
+| 6 | Explicit fingerprint comparison | API / domain logic |
+| 7 | **VERIFIED** / **NO MATCH** / **ERROR** mapping | API |
+| 8 | **VerificationEvent** + **AuditEntry** persistence | API + audit module |
+| 9 | UI upload / submit / result states | UI |
+| 10 | Documentation | Docs |
+
+### Spike vs Build
+
+**FULL_STORY_SPIKE_REQUIRED:** NO
+
+**TARGETED_FINGERPRINT_SPIKE:** YES
+
+Investigate:
+
+- Streaming vs in-memory hashing
+- Processing time
+- Memory behavior
+- Sync vs background processing
+- Implementation recommendation
+
+**Spike exit criteria:**
+
+1. Representative file sizes are tested without inventing a production limit.
+2. Processing time is observed and recorded.
+3. Memory behavior is observed and recorded.
+4. Streaming feasibility is documented.
+5. A sync vs background-processing recommendation is documented.
+
+---
+
+## 6. Test Plan
+
+```text
+        E2E
+    Integration
+       Unit
+```
+
+### Unit Tests
+
+1. Matching fingerprints → **VERIFIED**
+2. Different fingerprints → **NO MATCH**
+3. Processing failure → **ERROR**
+4. Mismatch or failure must never produce **VERIFIED**
+5. Result mapping produces only **VERIFIED**, **NO MATCH**, or **ERROR**
+
+### Integration Tests
+
+1. Authorized identical file → **VERIFIED**
+2. Authorized modified file → **NO MATCH**
+3. Processing failure → **ERROR**
+4. Unauthorized request rejected
+5. Correct **FileVersion** and stored **Fingerprint** used
+6. **VerificationEvent** and **AuditEntry** persisted
+7. Selected **FileRecord** history returns only that record's verification events
+
+### End-to-End Tests
+
+1. Unchanged file → **VERIFIED** shown
+2. Modified file → **NO MATCH** shown
+3. Processing error → **ERROR** shown
+4. Unauthorized user blocked
+
+**Invariant:** A non-matching or failed verification must never produce **VERIFIED**.
+
+---
+
+## 7. Definition of Done
+
+- [ ] Acceptance criteria satisfied
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] Critical E2E paths pass
+- [ ] Authorization behavior tested
+- [ ] Failure and error paths tested
+- [ ] Result terminology uses **VERIFIED**, **NO MATCH**, **ERROR** only
+- [ ] **VerificationEvent** recording verified
+- [ ] **AuditEntry** recording verified
+- [ ] Lint / format / static analysis pass
+- [ ] CI checks pass
+- [ ] Documentation updated
+- [ ] Code review completed
+- [ ] No unresolved critical/high defects remain
+
+---
+
+## 8. Release Checklist
+
+### Before Release
+
+- [ ] Acceptance criteria completed
+- [ ] Code review approved
+- [ ] CI checks passing
+- [ ] Unit and integration tests passing
+- [ ] Critical E2E verification journeys passing
+- [ ] Migration review completed
+- [ ] Secrets/config documented outside source control
+- [ ] Feature flag default safe: `PROOFCHAIN_FILE_VERIFICATION_ENABLED=false`
+
+### Deployment
+
+- [ ] Deploy approved build artifact
+- [ ] Confirm migration status
+- [ ] Staging validation completed
+- [ ] Production approval granted
+- [ ] Rollback readiness confirmed
+
+### After Release
+
+- [ ] Monitor errors, latency, and verification outcomes
+- [ ] Watch for unexpected **VERIFIED** results
+- [ ] Confirm audit events continue to be recorded
+- [ ] Keep rollback decision window active
+
+### Production Smoke Tests
+
+1. Application health responds successfully
+2. User can register a file
+3. Identical file verification returns **VERIFIED**
+4. Modified file verification returns **NO MATCH**
+5. **VerificationEvent** and **AuditEntry** persistence verified
+
+---
+
+## 9. Rollback and Incident Readiness
+
+**Scenario:** Modified files incorrectly return **VERIFIED**.
+
+**Severity:** HIGH
+
+| Step | Action |
+|------|--------|
+| 1. **Detect** | Monitoring or smoke test shows false **VERIFIED** |
+| 2. **Triage** | Confirm impact, affected version, and time window |
+| 3. **Mitigate** | Set `PROOFCHAIN_FILE_VERIFICATION_ENABLED=false` |
+| 4. **Investigate** | Review comparison logic, config, and audit evidence |
+| 5. **Rollback / Fix** | Roll back to last known-good artifact or deploy minimal fix |
+| 6. **Verify** | Re-run **VERIFIED**, **NO MATCH**, **ERROR**, and auth tests |
+| 7. **Monitor** | Watch result distribution and audit persistence |
+| 8. **Review** | Root cause, affected window, regression test, prevention actions |
+
+**Rules:**
+
+- Use feature-flag containment before risky redeploys when appropriate
+- Roll back to last known-good artifact
+- Identify affected deployment version and time window
+- Preserve audit evidence; do not silently delete incorrect **VerificationEvent** records
+- Add regression test before closing incident
+
+---
+
+## 10. Operations Notes
+
+**Core monitoring signals:**
+
+| Signal | Why it matters |
+|--------|----------------|
+| Request rate | Traffic and abuse detection |
+| Error rate | Overall instability |
+| Latency | Fingerprint processing health |
+| HTTP 5xx rate | Server/processing failures |
+| **VERIFIED** count | Normal success volume |
+| **NO MATCH** count | Integrity mismatch volume |
+| **ERROR** count | Processing failure volume |
+| Unexpected **VERIFIED** anomaly | Possible integrity regression |
+| Authorization failures | Security/access issues |
+| Database errors / latency | Lookup and persistence health |
+| Audit persistence failures | Missing **VerificationEvent** / **AuditEntry** |
+| Application health | Service availability |
+| Deployed version | Release correlation |
+
+### Structured Logging
+
+**Include:** correlation/request ID, safe **FileRecord** / **FileVersion** identifiers, result state, duration, deployed version where useful
+
+**Never log:** secrets, credentials, full customer file contents
+
+---
+
+## 11. Feedback Loop
+
+```text
+Capture
+  → Triage
+  → Clarify
+  → Requirement / Backlog
+  → Prioritize
+  → Build / Test / Release
+  → Observe
+  → Capture
+  ↺
+```
+
+**ProofChain example**
+
+**User feedback:** "I don't understand what **NO MATCH** means."
+
+Do not jump directly to a UI tweak.
+
+1. Investigate what the user misunderstood
+2. Clarify expected understanding
+3. Create/update requirement
+4. Write user story and acceptance criteria
+5. Implement, test, and release
+6. Observe whether confusion decreases
+
+**Boundary:** **NO MATCH** means the uploaded file does not match the selected **FileVersion** fingerprint. It does **not** mean the document's information is factually false.
+
+---
+
+## 12. Reflection
+
+**Most underestimated phase:** Requirements / discovery and pre-implementation clarification
+
+**Reason:** Starting implementation with unresolved assumptions creates later review rework.
+
+**Practice actions:**
+
+1. Write the problem statement before design or build tasks
+2. Identify open dependencies explicitly (**TBD** file types/size)
+3. Define acceptance criteria before implementation
+4. Document in-scope and out-of-scope boundaries early
+5. Create a small design sketch before coding
+6. Run a pre-implementation review checklist
+
+**Process metric connection:** Track **Review Rework Rate** next month. This metric is a process-learning signal, not an individual performance target.
+
+---
+
+## 13. Ready-to-Build Summary
+
+| Area | Status |
+|------|--------|
+| Requirements | READY |
+| Design | READY |
+| Build Plan | READY |
+| Testing | READY |
+| Definition of Done | READY |
+| Release | READY |
+| Incident / Rollback | READY |
+| Operations | READY |
+| Feedback Loop | READY |
+| Reflection | READY |
+
+**Open item:** Supported file types and maximum file size remain **TBD**.
+
+**READY_FOR_IMPLEMENTATION:** YES — core verification slice.
+
+**PRODUCTION_ACCEPTANCE_STATUS:** BLOCKED until supported file types and maximum file size are agreed and validated.
