@@ -1961,3 +1961,175 @@ Environments reduce risk by separating experimentation, validation, and live ope
 Build once, promote the same artifact through staging with environment-specific config discipline.
 
 Avoid uncontrolled production hotfixes — mitigate first, then follow the safer controlled path.
+
+# Maintenance & Operations — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+
+Most of a product's life is after launch. Maintenance and operations keep value alive. Monitoring and a calm incident process are part of SDLC — not an afterthought.
+
+ProofChain verifies whether a file matches a previously registered **FileVersion**. It does **not** determine whether the information inside a file is factually true.
+
+User-facing results are **VERIFIED**, **NO MATCH**, or **ERROR** only.
+
+---
+
+## 1. Maintenance Types
+
+| Type | Purpose | ProofChain example |
+|------|---------|-------------------|
+| **Corrective** | Fix an active defect after release | Patch bug where modified files incorrectly return **VERIFIED** |
+| **Adaptive** | Adjust to changed environment | Update identity provider integration when auth endpoints change |
+| **Perfective** | Improve performance or usability | Make verification result screen clearer without changing integrity rules |
+| **Preventive** | Reduce future risk before a production defect appears | Upgrade an aging hashing dependency and strengthen **Fingerprint** regression tests before a known compatibility or security risk becomes a production incident |
+
+**How they differ:**
+
+- **Corrective** fixes something already broken in production or release.
+- **Preventive** reduces risk **before** an active production defect exists — it is not the same as reacting to an alert after users are affected.
+- **Adaptive** responds to external change.
+- **Perfective** improves the product without fixing a defect.
+
+Monitoring or alert improvements can support preventive work, but they should not be the main preventive example on their own.
+
+---
+
+## 2. Signals to Watch
+
+For a simple ProofChain verification API, monitor these core signals:
+
+| Signal | What it tells us | Why it matters |
+|--------|------------------|----------------|
+| **Request rate** | Traffic volume and usage spikes | Helps detect abuse, rollout effects, or capacity pressure |
+| **Error rate** | Overall failed requests | Shows rising instability in verification flows |
+| **Request latency** | Response time (p95/p99) | Slow **Fingerprint** processing reduces trust and may hide failures |
+| **HTTP 5xx rate** | Server/processing failures | May cause **ERROR** outcomes or failed verification attempts |
+| **VERIFIED / NO MATCH / ERROR distribution** | Result mix over time | Shifts may indicate logic, config, or data issues |
+| **Unexpected VERIFIED anomalies** | Modified inputs returning **VERIFIED** | **HIGH PRIORITY** — false **VERIFIED** breaks ProofChain's core integrity guarantee |
+| **Authentication / authorization failures** | Access control problems | May expose protected **FileRecord** / **FileVersion** data incorrectly |
+| **Database errors / latency** | Persistence health | Can break lookup of **FileVersion** / **Fingerprint** or audit writes |
+| **VerificationEvent / AuditEntry persistence failures** | Audit write problems | Verification may succeed visually while audit evidence is lost |
+| **Application health / availability** | Service up/down status | Basic availability for register and verify flows |
+
+**Additional useful signal:** deployed version tag — correlates incidents with releases, but does not replace the core signals above.
+
+**Distribution nuance:** A change in **VERIFIED** / **NO MATCH** / **ERROR** distribution is an investigation signal. A distribution change alone does not prove that a bug exists.
+
+### Structured Logging
+
+Use structured logs for investigation and on-call response:
+
+- Structured log fields, not unstructured text only
+- Correlation / request ID across API, database, and audit writes
+- Safe identifiers such as **FileRecord** ID and **FileVersion** ID
+- Result state (**VERIFIED**, **NO MATCH**, **ERROR**)
+- Deployed version where useful for incident correlation
+- No passwords, tokens, or secrets
+- Do not casually log full customer file contents
+
+Preserve audit evidence for incident investigation. Logs support analysis; they do not replace retained **VerificationEvent** / **AuditEntry** records.
+
+---
+
+## 3. Incident Outline
+
+**Sample incident:** Modified files may incorrectly return **VERIFIED**.
+
+**Severity:** HIGH
+
+**Impact:** A changed file may be trusted as unchanged, violating ProofChain's core integrity guarantee.
+
+| Step | Actions |
+|------|---------|
+| 1. **Detect** | Alert, dashboard anomaly, or support report shows modified files returning **VERIFIED** |
+| 2. **Triage** | Assess affected version, affected time window, reproducibility, user impact, and priority |
+| 3. **Mitigate** | Stop risky outcomes first — e.g. set `PROOFCHAIN_FILE_VERIFICATION_ENABLED=false` |
+| 4. **Investigate** | Review **Fingerprint** calculation, **FileVersion** lookup, comparison logic, recent deployment/config changes, and **VerificationEvent** / **AuditEntry** evidence |
+| 5. **Fix** | Apply minimal corrective change and add regression test |
+| 6. **Verify** | Run CI, review, staging checks, and validate **VERIFIED**, **NO MATCH**, **ERROR**, authorization, and audit persistence |
+| 7. **Restore / Monitor** | Controlled production restore, production smoke test, then monitor errors, latency, result distribution, and unexpected **VERIFIED** |
+| 8. **Review** | Document root cause, affected records/time window, prevention actions, and runbook updates |
+
+**Mini timeline example:**
+
+```text
+09:10  Detect: unexpected VERIFIED anomaly alert
+09:15  Triage: reproducible on version proofchain-v0.1.0; user impact confirmed
+09:25  Mitigate: PROOFCHAIN_FILE_VERIFICATION_ENABLED=false
+09:40  Investigate: comparison logic regression after deploy
+10:10  Fix + regression test pass in CI and staging
+10:45  Verify + restore in production; smoke test passes
+11:00  Monitor: result distribution and audit writes watched
+11:30  Review: root cause and prevention actions recorded
+```
+
+### Incident Safety Rules
+
+- Preserve audit evidence.
+- Do not silently delete incorrect **VerificationEvent** or **AuditEntry** records.
+- Identify affected deployment version and time window.
+- Prefer mitigation before a rushed production fix.
+- Communicate current status and user impact.
+- Record follow-up and prevention actions.
+
+If incorrect **VERIFIED** records exist, preserve them as incident evidence rather than secretly rewriting history.
+
+---
+
+## 4. On-Call Empathy
+
+The on-call engineer should not need to guess basic incident context.
+
+Provide these 10 fields:
+
+1. **Clear alert title**
+2. **Severity**
+3. **Affected service / feature**
+4. **User impact**
+5. **First detected time**
+6. **Current deployed version**
+7. **Recent deployment / change**
+8. **Relevant logs / dashboard / evidence**
+9. **Known mitigation / rollback steps**
+10. **Escalation / contact owner**
+
+### Alert Quality
+
+**Bad alert:**
+
+> Verification is broken.
+
+**Useful alert:**
+
+> HIGH — ProofChain File Verification: modified files may return **VERIFIED**. First detected at `[time]`, affecting version `[version]`. Verification has been disabled with the feature flag. See `[dashboard/runbook]`.
+
+A useful alert includes severity, affected feature, impact, detected time, deployed version, mitigation status, and an investigation resource.
+
+**What to avoid:**
+
+- Vague one-line reports
+- Missing deployment/version context
+- Sharing production secrets or full customer files in chat
+
+---
+
+## 5. Minimal On-Call Runbook
+
+1. **Service purpose** — verify uploaded files against registered **FileVersion** fingerprints
+2. **Health check** — confirm application health endpoint responds
+3. **Key dashboards / signals** — error rate, latency, result distribution, unexpected **VERIFIED**
+4. **Structured logs** — search by request ID, **FileVersion** ID, result state
+5. **Feature flag mitigation** — disable `PROOFCHAIN_FILE_VERIFICATION_ENABLED`
+6. **Rollback procedure** — return to last known-good application version if needed
+7. **Production smoke test** — health, register, **VERIFIED**, **NO MATCH**, audit recording
+8. **Escalation owner** — contact designated incident owner / engineering lead
+
+---
+
+## 6. Key Takeaway
+
+Maintenance keeps ProofChain useful after launch — through corrective, adaptive, perfective, and preventive work.
+
+Watch API signals that protect integrity, security, and audit behavior.
+
+A calm incident process — detect, triage, mitigate, investigate, fix, verify, restore/monitor, review — is part of professional SDLC operations.
