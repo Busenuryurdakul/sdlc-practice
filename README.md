@@ -649,3 +649,241 @@ User stories capture intent from the user's perspective.
 Acceptance criteria make "done" testable and reduce misunderstanding.
 
 Small, prioritized stories reduce delivery risk and help teams get feedback faster.
+
+# Design Sketch — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Feature focus:** File Integrity Verification
+
+**Product boundary:** ProofChain verifies whether a file matches a previously registered version. ProofChain does **not** determine whether the information inside the document is factually true.
+
+---
+
+## 1. Context Diagram
+
+Who uses ProofChain and what external systems it may interact with:
+
+```text
+                         ┌─────────────────────┐
+                         │  Identity Provider  │
+                         │  (login / roles)    │
+                         └──────────┬──────────┘
+                                    │
+    ┌───────────────────────────────┼───────────────────────────────┐
+    │                               │                               │
+    ▼                               ▼                               ▼
+┌─────────────┐          ┌──────────────────────────────┐   ┌─────────────────┐
+│ Project     │ register │                              │   │ Object Storage  │
+│ Manager     │ manage   │         ProofChain           │   │ (optional file  │
+│ records     │─────────▶│  File Integrity Verification │◀─▶│ upload buffer)  │
+└─────────────┘          │                              │   └─────────────────┘
+                         │  Internal:                   │
+┌─────────────┐ verify   │  - Web UI                    │
+│ Compliance  │─────────▶│  - Verification API          │
+│ Officer     │          │  - Registry DB               │
+└─────────────┘          │  - Audit Log                 │
+                         │  - Hashing / Authorization   │
+┌─────────────┐ view     │  - Background Jobs           │
+│ Team Member │ result   │                              │
+└─────────────┘─────────▶│                              │
+                         └──────────────────────────────┘
+┌─────────────┐ review              ▲
+│ External    │ history             │
+│ Auditor     │─────────────────────┘
+└─────────────┘
+
+┌─────────────┐ manage access
+│ Records /   │ and records
+│ Security    │─────────────────────▶ ProofChain
+│ Admin       │
+└─────────────┘
+```
+
+**Actors:**
+
+| Actor | Primary responsibility |
+|-------|------------------------|
+| Project manager | Register and manage records |
+| Compliance officer | Verify files |
+| Team member | View verification results |
+| External auditor | Review verification history |
+| Records / security administrator | Manage access and records |
+
+**External systems:**
+
+| System | Purpose |
+|--------|---------|
+| Identity provider | Authentication and role-based access |
+| Object storage (optional) | Temporary upload handling for large files |
+
+Audit logging is handled **inside** ProofChain as an internal responsibility, not as a separate external system.
+
+---
+
+## 2. Component Sketch
+
+Major parts of the system and their responsibilities:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                        Web UI                               │
+│  Upload file, select record, show VERIFIED / FAILED result  │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Verification API                        │
+│  Register file, verify file, fetch record, fetch history    │
+└───────┬───────────────────────────────┬─────────────────────┘
+        │                               │
+        ▼                               ▼
+┌──────────────────┐           ┌────────────────────┐
+│ Hashing Service  │           │ Authorization Layer│
+│ Generate/compare │           │ Check user access  │
+│ SHA-256 values   │           │ to records/history │
+└────────┬─────────┘           └────────────────────┘
+         │
+         ▼
+┌──────────────────┐           ┌────────────────────┐
+│ Registry DB      │           │ Audit Log          │
+│ File records,    │           │ Record register /  │
+│ file versions,   │           │ verify events      │
+│ fingerprints     │           └────────────────────┘
+└──────────────────┘
+         ▲
+         │
+┌──────────────────┐
+│ Background Jobs  │
+│ Process large    │
+│ file hashing     │
+│ asynchronously   │
+└──────────────────┘
+```
+
+These are **logical components** within the ProofChain application. They do **not** represent separately deployed microservices.
+
+For the MVP, components such as **Hashing Service** and **Authorization Layer** can live as modules or layers inside the same application.
+
+| Component | Responsibility |
+|-----------|----------------|
+| **Web UI** | Lets users register files, run verification, and view results/history |
+| **Verification API** | Handles register, verify, record lookup, and history requests |
+| **Hashing Service** | Creates and compares SHA-256 fingerprints |
+| **Registry DB** | Stores file records, file versions, fingerprints, and timestamps |
+| **Audit Log** | Records who registered or verified a file and the outcome |
+| **Authorization Layer** | Controls which users can access records and history |
+| **Background Jobs** | Processes large files without blocking the user interface |
+
+---
+
+## 3. Data Sketch
+
+Main entities and relationships for **File Integrity Verification**.
+
+This is a **conceptual data model**, not a SQL schema.
+
+```text
+User
+ │
+ │ creates
+ ▼
+FileRecord ──────── has many ──────── FileVersion ──────── has one ──────── Fingerprint
+                                              │
+                                              │ has many
+                                              ▼
+                                       VerificationEvent
+                                              │
+User ─────────────────────────────────────────┘
+ │ performs
+
+FileRecord / FileVersion / VerificationEvent
+ │
+ │ related to
+ ▼
+AuditEntry
+```
+
+| Entity | Description | Key fields |
+|--------|-------------|------------|
+| **User** | Person using the system | `user_id`, `role` |
+| **FileRecord** | Logical file identity in ProofChain | `record_id`, `file_name`, `owner_id` |
+| **FileVersion** | One registered version of a file | `version_id`, `record_id`, `registered_at`, `version_number` |
+| **Fingerprint** | Hash value for one file version | `algorithm`, `hash_value` |
+| **VerificationEvent** | One verification attempt against a file version | `verification_id`, `version_id`, `result`, `verified_at`, `user_id` |
+| **AuditEntry** | Immutable activity log | `event_type`, `actor_id`, `timestamp`, `outcome`, `related_entity` |
+
+**Relationships:**
+
+- One **User** can create many **FileRecord** entries
+- One **FileRecord** can have many **FileVersion** entries
+- One **FileVersion** has one **Fingerprint**
+- One **FileVersion** can have many **VerificationEvent** entries
+- One **User** can perform many **VerificationEvent** entries
+- **FileRecord**, **FileVersion**, and **VerificationEvent** can each relate to **AuditEntry** records
+
+Even if the MVP initially creates only one **FileVersion** per **FileRecord**, keeping **FileVersion** in the conceptual model makes future version history explicit.
+
+**Registration flow:**
+
+1. User registers a file
+2. **FileRecord** is created
+3. Initial **FileVersion** is created
+4. **Fingerprint** is generated
+5. **AuditEntry** is recorded
+
+**Verification flow:**
+
+1. User selects a registered version
+2. Uploaded file fingerprint is calculated
+3. Result is compared with the registered **Fingerprint**
+4. **VerificationEvent** is recorded
+5. **AuditEntry** is recorded
+
+---
+
+## 4. Trade-off Note
+
+### Decision
+
+**Store only the file fingerprint and metadata, not the full file content by default.**
+
+### Why this was chosen
+
+- Lower storage requirements
+- Smaller privacy exposure
+- Simpler MVP
+- Clear integrity comparison through fingerprint matching
+- Matches the product goal: check integrity, not host file content
+
+### Disadvantage
+
+If ProofChain stores only a fingerprint and metadata, it **cannot reconstruct, restore, or serve the original file from the fingerprint alone**.
+
+### Alternative rejected
+
+**Permanent full-file storage by default.**
+
+### Why it was rejected
+
+- Higher storage and security burden
+- More privacy and retention concerns
+- Slower uploads and higher infrastructure cost
+- Not required for MVP integrity checking if users can re-upload a file for verification
+
+### Future option
+
+If future requirements include archival or original-file retrieval, object storage can be introduced intentionally.
+
+### Takeaway
+
+Design should support the smallest trustworthy solution first, then add heavier storage or processing only if requirements prove it is necessary.
+
+---
+
+## 5. Key Takeaway
+
+Design connects requirements to implementation.
+
+A simple context diagram, component sketch, and data sketch help the team agree on boundaries before writing large amounts of code.
+
+Trade-off notes make important decisions visible early and reduce rework later.
