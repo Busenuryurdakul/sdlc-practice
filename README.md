@@ -2133,3 +2133,201 @@ Maintenance keeps ProofChain useful after launch — through corrective, adaptiv
 Watch API signals that protect integrity, security, and audit behavior.
 
 A calm incident process — detect, triage, mitigate, investigate, fix, verify, restore/monitor, review — is part of professional SDLC operations.
+
+# Retrospective & Continuous Improvement — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+**Project:** ProofChain SDLC practice (requirements through maintenance)
+
+Retrospectives close the SDLC loop: learn → adjust → build better. Continuous improvement needs actions and feedback into requirements — not only venting.
+
+ProofChain verifies whether a file matches a previously registered **FileVersion**. ProofChain does **not** determine whether information inside the file is factually true. **NO MATCH** means integrity mismatch only.
+
+---
+
+## 1. Retro Format
+
+**Recent project:** ProofChain MVP documentation and Story 2 — Verify a File slice
+
+### Went Well
+
+1. Product boundary became clear early: integrity verification is not factual truth verification.
+2. **VERIFIED**, **NO MATCH**, and **ERROR** terminology stayed consistent across requirements, testing, and operations.
+3. **FileRecord** → **FileVersion** → **Fingerprint** made the verification target easier to understand.
+4. Feature branch + review + PR workflow reduced risk to `main`.
+5. Testing, rollback, monitoring, and incident handling became part of SDLC instead of afterthoughts post-implementation.
+
+### Improve
+
+1. **Observation:** Some assignment requirements were found only during the first review.
+   **Impact:** Rework increased before commit-ready quality was reached.
+
+2. **Observation:** Supported file types and maximum file size remained **TBD** for multiple exercises.
+   **Impact:** Implementation and acceptance criteria stayed partially open.
+
+3. **Observation:** Some terminology and design decisions needed several iterations to stabilize.
+   **Impact:** Review cycles repeated similar consistency checks.
+
+4. **Observation:** Operational requirements were detailed later in the lifecycle than ideal.
+   **Impact:** Release and maintenance thinking arrived after core product sections were already written.
+
+5. **Observation:** A reusable pre-commit checklist was not used from the first exercise onward.
+   **Impact:** First-pass quality varied and review findings repeated.
+
+### Actions
+
+| Action | Owner | Due | Success Signal |
+|--------|-------|-----|----------------|
+| Use a requirements readiness check before design work begins | Me | 2026-09-30 | No unresolved core boundary or result-state questions at design start |
+| Create and use a reusable pre-commit review checklist | Me | 2026-09-20 | Checklist used on every new README exercise before commit |
+| Resolve file type + maximum size **TBD** before implementation acceptance | Me | 2026-10-15 | Mini spec lists a documented decision or explicit spike outcome |
+| Move operations requirements checklist into the design phase | Me | 2026-10-01 | Next exercise includes ops/release notes in design or mini spec |
+| Apply terminology and product-boundary checks in the first draft of each exercise | Me | 2026-09-25 | First draft passes terminology/product-boundary review without rework |
+
+---
+
+## 2. From Complaint to Action
+
+**Complaint 1:** "Requirements keep changing after design starts."
+
+- **Observation:** Some core requirements remain unresolved when design begins.
+- **Action:** Introduce a short requirements readiness check before design.
+- **Owner:** Me
+- **Due:** 2026-09-30
+- **Success Measure:** No unresolved core product-boundary or result-state questions when design begins.
+
+**Complaint 2:** "We keep finding important issues during final review."
+
+- **Observation:** Important consistency and assignment checks are sometimes performed only during the final pre-commit review.
+- **Action:** Use a reusable pre-commit checklist covering assignment requirements, terminology, architecture consistency, product boundary, and `git diff --check`.
+- **Owner:** Me
+- **Due:** 2026-09-20
+- **Success Measure:** Reduce the number of exercises requiring substantive changes after their first pre-commit review.
+
+---
+
+## 3. Process Metric for Next Month
+
+**Primary metric:** Review Rework Rate
+
+**Definition:** Percentage of reviewed exercises that require substantive changes after the first pre-commit review.
+
+**Formula:**
+
+```text
+Review Rework Rate =
+  Exercises requiring substantive changes after first review
+  /
+  Total reviewed exercises
+  × 100
+```
+
+**Why this metric:** Many ProofChain exercises received **PASS_WITH_CHANGES** on first review. This metric provides a learning signal for requirements clarity, first-pass quality, and pre-commit checklist effectiveness.
+
+**Measurement period:** Next month
+
+**Baseline:** Baseline will be established during the first measurement period.
+
+This metric is a learning signal, not a performance target.
+
+**Goodhart / gaming note:** The goal is not to hide review findings or avoid useful changes to make the percentage look better. A lower number is useful only when it reflects genuinely clearer requirements and stronger first-pass quality.
+
+---
+
+## 4. Feedback Loop
+
+Validated feedback returns to requirements and backlog work — it should not stop at support tickets or venting.
+
+```text
+User
+  ↓
+Feedback
+  ↓
+Capture
+  ↓
+Triage
+  ↓
+Clarify
+  ↓
+Requirements / Backlog
+  ↓
+Prioritize
+  ↓
+Design
+  ↓
+Implementation
+  ↓
+Testing
+  ↓
+Release
+  ↓
+Observe
+  ↓
+User
+  ↺
+```
+
+**Seven logical steps:**
+
+1. **Capture** — record the feedback with source and context
+2. **Triage** — classify as defect, usability issue, new need, or out of scope
+3. **Clarify** — confirm what the user or system signal actually means
+4. **Convert to requirement/story** — update requirements, story, or acceptance criteria
+5. **Prioritize** — decide whether and when the work enters the backlog
+6. **Build / test / release** — design, implement, test, and release the change
+7. **Observe outcome** — monitor whether the original problem decreased
+
+Feedback must be understood and validated before becoming work. Not every signal becomes a requirement automatically.
+
+### ProofChain Feedback Example
+
+**User feedback:** "I uploaded a modified document but I don't understand what **NO MATCH** means."
+
+Do not jump directly to a UI tweak without understanding the problem.
+
+1. Capture feedback.
+2. Investigate what the user misunderstood.
+3. Clarify expected understanding.
+4. Create or update requirement.
+5. Create user story.
+6. Define acceptance criteria.
+7. Prioritize.
+8. Implement, test, and release.
+9. Observe whether confusion decreases.
+
+**Requirement example:** When verification returns **NO MATCH**, the interface must clearly explain that the uploaded file does not match the selected registered **FileVersion**.
+
+**User story example:** As a user verifying a file, I want a clear explanation when verification returns **NO MATCH**, so that I understand what the integrity result means.
+
+**Acceptance criteria:**
+
+- Given a mismatching file, when verification completes, then the UI displays **NO MATCH**.
+- The UI explains that the uploaded file does not match the selected registered **FileVersion**.
+- The UI must not describe **NO MATCH** as proof of fraud, false information, or factual inaccuracy.
+
+**Boundary:** **NO MATCH** means integrity mismatch only. It does **not** mean the document is false, fraudulent, or factually incorrect.
+
+### Feedback Sources
+
+1. User feedback
+2. Support requests
+3. Monitoring signals
+4. Incident reviews
+5. QA findings
+6. Analytics
+7. Retrospectives
+8. Security findings
+
+All of these sources can create input for triage and, when validated, can become requirements/backlog work.
+
+---
+
+## 5. Retrospective Principles
+
+1. Focus on process, not blame.
+2. Prefer evidence over assumptions.
+3. Convert observations into actions.
+4. Give actions an owner and target date.
+5. Feed learning back into requirements and future work.
+
+A retrospective without follow-up actions is only a conversation.
