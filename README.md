@@ -1797,3 +1797,167 @@ Forward-compatible migrations are preferred. Destructive database rollback must 
 3. Use feature flags for controlled exposure, not as a substitute for testing.
 4. Every release needs observable health signals.
 5. Rollback must be planned before deployment.
+
+# Environments & Deployment — ProofChain
+
+**Product:** ProofChain — Digital Content Integrity Verification System
+
+Operations begin at deploy. Environments exist to reduce risk. Promoting through staging with proper config discipline is core SDLC hygiene.
+
+ProofChain verifies file integrity against a registered **FileVersion**. It does **not** determine whether the information inside a file is factually true.
+
+User-facing results are **VERIFIED**, **NO MATCH**, or **ERROR** only.
+
+---
+
+## 1. Environment Map
+
+| Environment | Primary purpose | ProofChain responsibilities |
+|-------------|-----------------|------------------------------|
+| **Local** | Developer experimentation and fast feedback | Run unit/integration tests, debug **Fingerprint** comparison, test **VERIFIED** / **NO MATCH** / **ERROR** mapping with synthetic data |
+| **Staging** | Pre-production validation with production-like setup | Validate migrations, auth, **VerificationEvent** / **AuditEntry** flows, and release smoke tests with sanitized test data |
+| **Production** | Serve real users and real **FileRecord** data | Protect integrity guarantees, monitor verification outcomes, preserve audit history |
+
+**Environment safety rules:**
+
+**Production secrets**
+
+- Production credentials/secrets must never be reused in local or staging.
+- Each environment uses its own credentials.
+
+**Production data**
+
+- Production customer files/data must not be copied casually into local or staging.
+- Prefer synthetic or sanitized test data.
+- Test data must be clearly distinguishable from production data.
+- Lower environments must not accidentally trigger production notifications/events.
+
+Local is for learning. Staging is for confidence. Production is for trust.
+
+---
+
+## 2. Promotion Path
+
+**Build once, promote the same artifact.**
+
+Example artifact: `proofchain-v0.1.0`
+
+```text
+Feature Branch
+  → Pull Request
+  → CI
+  → Merge
+  → Build Immutable Artifact
+  → Staging
+  → Staging Validation
+  → Production Approval
+  → Production
+  → Post-Deploy Smoke Test
+  → Monitoring
+```
+
+**Promotion rules:**
+
+- The artifact validated in staging is the artifact promoted to production.
+- Code is not manually changed between staging and production.
+- Production deployment requires required validation to **PASS**.
+- After production deploy, run a post-deploy smoke test, then continue monitoring.
+
+**Production smoke test examples:**
+
+1. Application health
+2. Register file
+3. Unchanged file → **VERIFIED**
+4. Modified file → **NO MATCH**
+5. **VerificationEvent** / **AuditEntry** recording
+
+---
+
+## 3. Config Awareness
+
+| Category | Local | Staging | Production |
+|----------|-------|---------|------------|
+| **Secrets** | Developer/test credentials | Staging-only credentials | Production-only credentials |
+| **Database URLs** | Local database | Staging database | Production database |
+| **Service / API URLs** | `localhost` app/API endpoints | Staging app/API endpoints | Production app/API endpoints |
+| **Feature flags** | Often enabled for testing | Controlled rollout testing | Safe default; enable deliberately |
+| **Logging / Observability** | Verbose local logs | Staging alerts and traces | Production monitoring and incident alerts |
+| **External Integrations** | Dev/mock IdP, optional storage, monitoring | Staging IdP, storage, monitoring endpoints | Production IdP, storage, monitoring endpoints |
+
+**ProofChain config examples (no real values):**
+
+```text
+PROOFCHAIN_FILE_VERIFICATION_ENABLED=true|false
+DATABASE_URL=...
+SERVICE_API_URL=...
+IDENTITY_PROVIDER_URL=...
+```
+
+**Config rules:**
+
+- Production secrets are never reused in local/staging.
+- Secrets must stay outside source control.
+- Local, staging, and production use separate databases.
+- Local/staging must never connect to the production database.
+- Production URLs and credentials must not be hardcoded.
+- Feature flag values may differ by environment.
+- External integrations use environment-specific endpoints and credentials.
+
+### Configuration Principles
+
+1. Keep secrets outside source control.
+2. Separate environment-specific configuration from application code.
+3. Use different credentials and data stores per environment.
+4. Validate required configuration at startup/deployment.
+5. Document configuration without documenting secret values.
+
+---
+
+## 4. Unsafe Shortcut
+
+**Scenario:** Modified files occasionally return **VERIFIED**.
+
+**Unsafe shortcut:** Deploy an untested hotfix directly to production.
+
+**Why it is risky:**
+
+1. The fix may introduce another integrity regression.
+2. No regression-test evidence exists.
+3. Environment/configuration differences may be missed.
+4. Authorization/security behavior may break.
+5. **VerificationEvent** / **AuditEntry** behavior may break silently.
+6. Rollback readiness may be unknown.
+
+**Safer hotfix path:**
+
+1. **Contain / mitigate** — disable risky traffic or set `PROOFCHAIN_FILE_VERIFICATION_ENABLED=false`
+2. **Create hotfix branch**
+3. **Implement minimal fix**
+4. **Add regression test**
+5. **Run focused CI**
+6. **Obtain expedited review**
+7. **Validate in staging**
+8. **Promote the same validated artifact to production**
+9. **Run production smoke test**
+10. **Monitor and document the incident**
+
+**Emergency does not mean no process.**
+
+The emergency process may be faster and narrower, but it must remain controlled. Minimum safety controls still apply:
+
+- Automated tests
+- Review
+- Rollback readiness
+- Post-deploy verification
+
+If staging cannot be used, treat that as an exceptional, explicitly risk-accepted case — not the normal path.
+
+---
+
+## 5. Key Takeaway
+
+Environments reduce risk by separating experimentation, validation, and live operation.
+
+Build once, promote the same artifact through staging with environment-specific config discipline.
+
+Avoid uncontrolled production hotfixes — mitigate first, then follow the safer controlled path.
